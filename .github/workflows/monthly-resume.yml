@@ -1,0 +1,178 @@
+name: Monthly Resume Generator
+
+on:
+  # Run on the last day of each month at 23:00 UTC
+  schedule:
+    - cron: '0 23 28-31 * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      month:
+        description: 'Month to analyze (1-12, defaults to current month)'
+        required: false
+        type: number
+      year:
+        description: 'Year to analyze (defaults to current year)'
+        required: false
+        type: number
+      template:
+        description: 'Template to use (default, startup, enterprise, backend, frontend, devops, data)'
+        required: false
+        default: 'default'
+        type: choice
+        options:
+          - default
+          - startup
+          - enterprise
+          - backend
+          - frontend
+          - devops
+          - data
+      dry_run:
+        description: 'Dry run (no API calls)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  GO_VERSION: '1.21'
+
+jobs:
+  check-last-day:
+    runs-on: ubuntu-latest
+    outputs:
+      is_last_day: ${{ steps.check.outputs.is_last_day }}
+    steps:
+      - name: Check if last day of month
+        id: check
+        run: |
+          # For manual dispatch, always run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "is_last_day=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check if tomorrow is the first of the month
+          tomorrow=$(date -d "+1 day" +%d)
+          if [ "$tomorrow" = "01" ]; then
+            echo "is_last_day=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_last_day=false" >> $GITHUB_OUTPUT
+          fi
+
+  generate-resume:
+    needs: check-last-day
+    if: needs.check-last-day.outputs.is_last_day == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for commit analysis
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build git-resume
+        run: |
+          go build -o git-resume .
+
+      - name: Determine month and year
+        id: date
+        run: |
+          if [ -n "${{ inputs.month }}" ]; then
+            MONTH=${{ inputs.month }}
+          else
+            MONTH=$(date +%m | sed 's/^0//')
+          fi
+
+          if [ -n "${{ inputs.year }}" ]; then
+            YEAR=${{ inputs.year }}
+          else
+            YEAR=$(date +%Y)
+          fi
+
+          echo "month=$MONTH" >> $GITHUB_OUTPUT
+          echo "year=$YEAR" >> $GITHUB_OUTPUT
+
+      - name: Run analysis (dry run)
+        if: inputs.dry_run == true
+        run: |
+          ./git-resume analyze \
+            --month=${{ steps.date.outputs.month }} \
+            --year=${{ steps.date.outputs.year }} \
+            --dry-run
+
+      - name: Run analysis
+        if: inputs.dry_run != true
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        run: |
+          TEMPLATE_FLAG=""
+          if [ -n "${{ inputs.template }}" ]; then
+            TEMPLATE_FLAG="--template=${{ inputs.template }}"
+          fi
+
+          ./git-resume analyze \
+            --month=${{ steps.date.outputs.month }} \
+            --year=${{ steps.date.outputs.year }} \
+            $TEMPLATE_FLAG
+
+      - name: Export to multiple formats
+        if: inputs.dry_run != true
+        run: |
+          ./git-resume export --format=csv
+          ./git-resume export --format=markdown
+          ./git-resume export --format=json
+
+      - name: Upload artifacts
+        if: inputs.dry_run != true
+        uses: actions/upload-artifact@v4
+        with:
+          name: resume-${{ steps.date.outputs.year }}-${{ steps.date.outputs.month }}
+          path: output/
+          retention-days: 90
+
+      - name: Send Slack notification
+        if: inputs.dry_run != true && success() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          MONTH=${{ steps.date.outputs.month }}
+          YEAR=${{ steps.date.outputs.year }}
+
+          # Count results
+          RESULT_COUNT=$(ls -1 output/*.csv 2>/dev/null | head -1 | xargs wc -l 2>/dev/null | awk '{print $1-1}' || echo "0")
+
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"text\": \"📊 Resume bullet points generated for ${YEAR}-${MONTH}\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*Monthly Resume Generation Complete* ✅\n\n📅 Period: ${YEAR}-${MONTH}\n📝 Bullet points generated: ${RESULT_COUNT}\n\nCheck the workflow artifacts for the full report.\"
+                  }
+                }
+              ]
+            }"
+
+      - name: Create summary
+        if: inputs.dry_run != true
+        run: |
+          echo "## 📊 Resume Generation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Period:** ${{ steps.date.outputs.year }}-${{ steps.date.outputs.month }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f output/*.md ]; then
+            echo "### Generated Resume Points" >> $GITHUB_STEP_SUMMARY
+            cat output/*.md >> $GITHUB_STEP_SUMMARY
+          fi
