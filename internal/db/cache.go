@@ -114,7 +114,7 @@ func (c *Cache) GetResults(project string, from, to time.Time) ([]models.Analysi
 		FROM analysis_results
 		WHERE date >= ? AND date <= ?
 	`
-	args := []interface{}{from, to}
+	args := []interface{}{from.Format(time.RFC3339), to.Format(time.RFC3339)}
 
 	if project != "" {
 		query += " AND project = ?"
@@ -132,10 +132,13 @@ func (c *Cache) GetResults(project string, from, to time.Time) ([]models.Analysi
 	var results []models.AnalysisResult
 	for rows.Next() {
 		var r models.AnalysisResult
-		err := rows.Scan(&r.ID, &r.CommitHash, &r.Date, &r.Project, &r.Category, &r.ImpactSummary, &r.CreatedAt)
+		var dateStr, createdAtStr string
+		err := rows.Scan(&r.ID, &r.CommitHash, &dateStr, &r.Project, &r.Category, &r.ImpactSummary, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
+		r.Date, _ = parseTime(dateStr)
+		r.CreatedAt, _ = parseTime(createdAtStr)
 		results = append(results, r)
 	}
 
@@ -175,12 +178,32 @@ func (c *Cache) GetAllResults() ([]models.AnalysisResult, error) {
 	var results []models.AnalysisResult
 	for rows.Next() {
 		var r models.AnalysisResult
-		err := rows.Scan(&r.ID, &r.CommitHash, &r.Date, &r.Project, &r.Category, &r.ImpactSummary, &r.CreatedAt)
+		var dateStr, createdAtStr string
+		err := rows.Scan(&r.ID, &r.CommitHash, &dateStr, &r.Project, &r.Category, &r.ImpactSummary, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
+		r.Date, _ = parseTime(dateStr)
+		r.CreatedAt, _ = parseTime(createdAtStr)
 		results = append(results, r)
 	}
 
 	return results, rows.Err()
+}
+
+// parseTime parses various time formats from SQLite
+func parseTime(s string) (time.Time, error) {
+	// Try RFC3339 first
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	// Try SQLite datetime format
+	if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
+		return t, nil
+	}
+	// Try date only
+	if t, err := time.Parse("2006-01-02", s); err == nil {
+		return t, nil
+	}
+	return time.Time{}, nil
 }
