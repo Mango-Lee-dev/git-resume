@@ -24,4 +24,8 @@ export const ENDPOINTS = {
 
   // Stats
   stats: '/api/stats',
+
+  // Sessions
+  sessions: '/api/sessions',
+  session: (id: string) => `/api/sessions/${id}`,
 } as const;

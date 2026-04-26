@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GitBranch, LayoutDashboard, PlayCircle, FileText, Download } from 'lucide-react';
+import { GitBranch, LayoutDashboard, PlayCircle, FileText, Download, Settings, Key } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSessionStore } from '@/stores';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,6 +15,8 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname();
+  const { session, apiKey } = useSessionStore();
+  const isAuthenticated = !!session && !!apiKey;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -23,7 +26,7 @@ export function Header() {
           <span>Git Resume</span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1 flex-1">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -46,6 +49,25 @@ export function Header() {
             );
           })}
         </nav>
+
+        <Link
+          href="/settings"
+          className={cn(
+            'flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors',
+            pathname === '/settings'
+              ? 'bg-accent text-accent-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+          )}
+        >
+          {isAuthenticated ? (
+            <Settings className="h-4 w-4" />
+          ) : (
+            <Key className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">
+            {isAuthenticated ? 'Settings' : 'API Key'}
+          </span>
+        </Link>
       </div>
     </header>
   );

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/wootaiklee/git-resume/internal/api/jobs"
+	"github.com/wootaiklee/git-resume/internal/api/session"
 	"github.com/wootaiklee/git-resume/internal/db"
 	"github.com/wootaiklee/git-resume/internal/service"
 )
@@ -76,11 +77,15 @@ func NewServer(cfg *ServerConfig, logger *slog.Logger) (*Server, error) {
 	}
 	jobManager := jobs.NewManager(analyzer, workerCount)
 
+	// Initialize session manager (24 hour TTL)
+	sessionManager := session.NewManager(24 * time.Hour)
+
 	deps := &Dependencies{
 		DB:             database,
 		Cache:          cache,
 		JobManager:     jobManager,
 		ResultsService: resultsService,
+		SessionManager: sessionManager,
 		Logger:         logger,
 	}
 

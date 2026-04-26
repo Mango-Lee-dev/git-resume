@@ -102,6 +102,15 @@ func NewExportError(message string) *APIError {
 	}
 }
 
+// NewUnauthorizedError creates a 401 error
+func NewUnauthorizedError(message string) *APIError {
+	return &APIError{
+		Code:       ErrCodeUnauthorized,
+		Message:    message,
+		StatusCode: http.StatusUnauthorized,
+	}
+}
+
 // WithRequestID adds request ID to the error
 func (e *APIError) WithRequestID(requestID string) *APIError {
 	e.RequestID = requestID
