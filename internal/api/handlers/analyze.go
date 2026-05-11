@@ -7,6 +7,7 @@ import (
 
 	"github.com/wootaiklee/git-resume/internal/api/dto"
 	"github.com/wootaiklee/git-resume/internal/api/jobs"
+	"github.com/wootaiklee/git-resume/internal/api/middleware"
 	"github.com/wootaiklee/git-resume/internal/service"
 )
 
@@ -43,6 +44,11 @@ func (h *AnalyzeHandler) Start(w http.ResponseWriter, r *http.Request) {
 		respondError(w, r, dto.NewBadRequestError(err.Error()))
 		return
 	}
+
+	// Scope this analysis to the caller's session-provided Claude key.
+	// SessionAuth middleware populates this; without it the analyzer falls back
+	// to the server-startup key.
+	cfg.APIKey = middleware.GetAPIKey(r.Context())
 
 	// Submit job
 	job, err := h.jobManager.Submit(cfg)

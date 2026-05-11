@@ -33,6 +33,9 @@ type AnalyzeConfig struct {
 	Template   string
 	BatchSize  int
 	DryRun     bool
+	// APIKey, when non-empty, overrides the Analyzer's default key for this run.
+	// Used by the HTTP server to scope analysis to the caller's session key.
+	APIKey     string
 }
 
 // AnalyzeProgress reports analysis progress
@@ -186,8 +189,12 @@ func (a *Analyzer) Analyze(ctx context.Context, cfg AnalyzeConfig, progressCh ch
 		return result, nil
 	}
 
-	// Check API key
-	if a.apiKey == "" {
+	// Resolve API key: per-run override beats the analyzer default
+	apiKey := cfg.APIKey
+	if apiKey == "" {
+		apiKey = a.apiKey
+	}
+	if apiKey == "" {
 		err := fmt.Errorf("CLAUDE_API_KEY not set")
 		sendProgress(progressCh, AnalyzeProgress{
 			Phase:   PhaseError,
@@ -204,7 +211,7 @@ func (a *Analyzer) Analyze(ctx context.Context, cfg AnalyzeConfig, progressCh ch
 		templateMgr.SetTemplate("default")
 	}
 
-	client := llm.NewClientWithTemplate(a.apiKey, templateMgr)
+	client := llm.NewClientWithTemplate(apiKey, templateMgr)
 
 	batches := createBatches(unprocessed, cfg.BatchSize, repoProjects)
 	totalBatches := len(batches)
