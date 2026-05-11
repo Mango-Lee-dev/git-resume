@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/common';
 import {
   StatsCards,
   CategoryBreakdown,
+  ClusterBreakdown,
   QuickActions,
   useDashboardStats,
 } from '@/features/dashboard';
@@ -22,8 +23,10 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <CategoryBreakdown stats={stats} />
-        <QuickActions />
+        <ClusterBreakdown clusters={stats?.cluster_breakdown} />
       </div>
+
+      <QuickActions />
     </div>
   );
 }

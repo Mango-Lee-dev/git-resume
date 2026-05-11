@@ -45,11 +45,16 @@ type ResultResponse struct {
 	Project       string    `json:"project"`
 	Category      string    `json:"category"`
 	ImpactSummary string    `json:"impact_summary"`
+	Clusters      []string  `json:"clusters"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 
 // FromAnalysisResult converts a model to response DTO
 func FromAnalysisResult(r models.AnalysisResult) ResultResponse {
+	clusters := r.Clusters
+	if clusters == nil {
+		clusters = []string{}
+	}
 	return ResultResponse{
 		ID:            r.ID,
 		CommitHash:    r.CommitHash,
@@ -57,6 +62,7 @@ func FromAnalysisResult(r models.AnalysisResult) ResultResponse {
 		Project:       r.Project,
 		Category:      string(r.Category),
 		ImpactSummary: r.ImpactSummary,
+		Clusters:      clusters,
 		CreatedAt:     r.CreatedAt,
 	}
 }
@@ -83,14 +89,21 @@ type TemplatesListResponse struct {
 	Templates []TemplateResponse `json:"templates"`
 }
 
+// ClusterStatResponse represents statistics for a single cluster
+type ClusterStatResponse struct {
+	Count    int      `json:"count"`
+	Projects []string `json:"projects"`
+}
+
 // StatsResponse for GET /api/stats
 type StatsResponse struct {
-	TotalResults      int                 `json:"total_results"`
-	TotalCommits      int                 `json:"total_commits"`
-	TokensUsed        TokenUsageStats     `json:"tokens_used"`
-	CategoryBreakdown map[string]int      `json:"category_breakdown"`
-	ProjectBreakdown  map[string]int      `json:"project_breakdown"`
-	RecentActivity    []DailyActivityStat `json:"recent_activity,omitempty"`
+	TotalResults      int                            `json:"total_results"`
+	TotalCommits      int                            `json:"total_commits"`
+	TokensUsed        TokenUsageStats                `json:"tokens_used"`
+	CategoryBreakdown map[string]int                 `json:"category_breakdown"`
+	ProjectBreakdown  map[string]int                 `json:"project_breakdown"`
+	ClusterBreakdown  map[string]ClusterStatResponse `json:"cluster_breakdown"`
+	RecentActivity    []DailyActivityStat            `json:"recent_activity,omitempty"`
 }
 
 // TokenUsageStats represents token usage statistics

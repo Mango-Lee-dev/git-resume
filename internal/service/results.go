@@ -128,6 +128,7 @@ func (s *ResultsService) GetStats(ctx context.Context) (*Stats, error) {
 		TotalResults:      len(results),
 		CategoryBreakdown: make(map[string]int),
 		ProjectBreakdown:  make(map[string]int),
+		ClusterBreakdown:  make(map[string]*ClusterStat),
 		InputTokens:       inputTokens,
 		OutputTokens:      outputTokens,
 		TotalCost:         totalCost,
@@ -136,9 +137,41 @@ func (s *ResultsService) GetStats(ctx context.Context) (*Stats, error) {
 	for _, r := range results {
 		stats.CategoryBreakdown[string(r.Category)]++
 		stats.ProjectBreakdown[r.Project]++
+
+		// Calculate cluster breakdown
+		for _, cluster := range r.Clusters {
+			if _, ok := stats.ClusterBreakdown[cluster]; !ok {
+				stats.ClusterBreakdown[cluster] = &ClusterStat{
+					Projects: []string{},
+				}
+			}
+			stats.ClusterBreakdown[cluster].Count++
+			// Add project if not already present
+			if !containsString(stats.ClusterBreakdown[cluster].Projects, r.Project) {
+				stats.ClusterBreakdown[cluster].Projects = append(
+					stats.ClusterBreakdown[cluster].Projects, r.Project,
+				)
+			}
+		}
 	}
 
 	return stats, nil
+}
+
+// containsString checks if a slice contains a string
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// ClusterStat holds statistics for a single cluster
+type ClusterStat struct {
+	Count    int      `json:"count"`
+	Projects []string `json:"projects"`
 }
 
 // Stats holds result statistics
@@ -146,6 +179,7 @@ type Stats struct {
 	TotalResults      int
 	CategoryBreakdown map[string]int
 	ProjectBreakdown  map[string]int
+	ClusterBreakdown  map[string]*ClusterStat
 	InputTokens       int
 	OutputTokens      int
 	TotalCost         float64

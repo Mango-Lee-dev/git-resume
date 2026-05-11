@@ -25,6 +25,15 @@ func (h *StatsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Convert cluster breakdown to DTO format
+	clusterBreakdown := make(map[string]dto.ClusterStatResponse)
+	for cluster, stat := range stats.ClusterBreakdown {
+		clusterBreakdown[cluster] = dto.ClusterStatResponse{
+			Count:    stat.Count,
+			Projects: stat.Projects,
+		}
+	}
+
 	respondOK(w, dto.StatsResponse{
 		TotalResults: stats.TotalResults,
 		TokensUsed: dto.TokenUsageStats{
@@ -34,5 +43,6 @@ func (h *StatsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		},
 		CategoryBreakdown: stats.CategoryBreakdown,
 		ProjectBreakdown:  stats.ProjectBreakdown,
+		ClusterBreakdown:  clusterBreakdown,
 	})
 }

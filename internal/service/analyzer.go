@@ -7,6 +7,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/wootaiklee/git-resume/internal/classify"
 	"github.com/wootaiklee/git-resume/internal/db"
 	"github.com/wootaiklee/git-resume/internal/git"
 	"github.com/wootaiklee/git-resume/internal/llm"
@@ -213,6 +214,15 @@ func (a *Analyzer) Analyze(ctx context.Context, cfg AnalyzeConfig, progressCh ch
 
 	client := llm.NewClientWithTemplate(apiKey, templateMgr)
 
+	// Create commit lookup map for cluster classification
+	commitMap := make(map[string]models.Commit)
+	for _, c := range unprocessed {
+		commitMap[c.Hash] = c
+	}
+
+	// Initialize cluster classifier
+	clusterClassifier := classify.NewClusterClassifier()
+
 	batches := createBatches(unprocessed, cfg.BatchSize, repoProjects)
 	totalBatches := len(batches)
 
@@ -237,6 +247,16 @@ func (a *Analyzer) Analyze(ctx context.Context, cfg AnalyzeConfig, progressCh ch
 		batchResult, err := client.AnalyzeCommits(batch)
 		if err != nil {
 			continue // Skip failed batches
+		}
+
+		// Classify clusters for each result
+		for j := range batchResult.Results {
+			if commit, ok := commitMap[batchResult.Results[j].CommitHash]; ok {
+				batchResult.Results[j].Clusters = clusterClassifier.ClassifyToStrings(
+					commit.Message,
+					commit.Files,
+				)
+			}
 		}
 
 		// Phase 4: Saving (inline)

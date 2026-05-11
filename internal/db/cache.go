@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/wootaiklee/git-resume/pkg/models"
@@ -57,10 +58,15 @@ func (c *Cache) FilterUnprocessed(commits []models.Commit) ([]models.Commit, err
 
 // SaveResult saves an analysis result to the database
 func (c *Cache) SaveResult(result models.AnalysisResult) error {
-	_, err := c.db.conn.Exec(`
-		INSERT INTO analysis_results (commit_hash, date, project, category, impact_summary)
-		VALUES (?, ?, ?, ?, ?)
-	`, result.CommitHash, result.Date, result.Project, result.Category, result.ImpactSummary)
+	clustersJSON, err := json.Marshal(result.Clusters)
+	if err != nil {
+		clustersJSON = []byte("[]")
+	}
+
+	_, err = c.db.conn.Exec(`
+		INSERT INTO analysis_results (commit_hash, date, project, category, impact_summary, clusters)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, result.CommitHash, result.Date, result.Project, result.Category, result.ImpactSummary, string(clustersJSON))
 
 	if err != nil {
 		return err
@@ -79,8 +85,8 @@ func (c *Cache) SaveResults(results []models.AnalysisResult) error {
 	defer tx.Rollback()
 
 	stmt, err := tx.Prepare(`
-		INSERT INTO analysis_results (commit_hash, date, project, category, impact_summary)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO analysis_results (commit_hash, date, project, category, impact_summary, clusters)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`)
 	if err != nil {
 		return err
@@ -94,7 +100,11 @@ func (c *Cache) SaveResults(results []models.AnalysisResult) error {
 	defer commitStmt.Close()
 
 	for _, result := range results {
-		_, err = stmt.Exec(result.CommitHash, result.Date, result.Project, result.Category, result.ImpactSummary)
+		clustersJSON, err := json.Marshal(result.Clusters)
+		if err != nil {
+			clustersJSON = []byte("[]")
+		}
+		_, err = stmt.Exec(result.CommitHash, result.Date, result.Project, result.Category, result.ImpactSummary, string(clustersJSON))
 		if err != nil {
 			return err
 		}
@@ -110,7 +120,7 @@ func (c *Cache) SaveResults(results []models.AnalysisResult) error {
 // GetResults retrieves analysis results with optional filters
 func (c *Cache) GetResults(project string, from, to time.Time) ([]models.AnalysisResult, error) {
 	query := `
-		SELECT id, commit_hash, date, project, category, impact_summary, created_at
+		SELECT id, commit_hash, date, project, category, impact_summary, clusters, created_at
 		FROM analysis_results
 		WHERE date >= ? AND date <= ?
 	`
@@ -133,12 +143,19 @@ func (c *Cache) GetResults(project string, from, to time.Time) ([]models.Analysi
 	for rows.Next() {
 		var r models.AnalysisResult
 		var dateStr, createdAtStr string
-		err := rows.Scan(&r.ID, &r.CommitHash, &dateStr, &r.Project, &r.Category, &r.ImpactSummary, &createdAtStr)
+		var clustersJSON *string
+		err := rows.Scan(&r.ID, &r.CommitHash, &dateStr, &r.Project, &r.Category, &r.ImpactSummary, &clustersJSON, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
 		r.Date, _ = parseTime(dateStr)
 		r.CreatedAt, _ = parseTime(createdAtStr)
+		if clustersJSON != nil && *clustersJSON != "" {
+			json.Unmarshal([]byte(*clustersJSON), &r.Clusters)
+		}
+		if r.Clusters == nil {
+			r.Clusters = []string{}
+		}
 		results = append(results, r)
 	}
 
@@ -166,7 +183,7 @@ func (c *Cache) GetTotalTokenUsage() (inputTokens, outputTokens int, totalCost f
 // GetAllResults retrieves all analysis results from the database
 func (c *Cache) GetAllResults() ([]models.AnalysisResult, error) {
 	rows, err := c.db.conn.Query(`
-		SELECT id, commit_hash, date, project, category, impact_summary, created_at
+		SELECT id, commit_hash, date, project, category, impact_summary, clusters, created_at
 		FROM analysis_results
 		ORDER BY date DESC
 	`)
@@ -179,12 +196,19 @@ func (c *Cache) GetAllResults() ([]models.AnalysisResult, error) {
 	for rows.Next() {
 		var r models.AnalysisResult
 		var dateStr, createdAtStr string
-		err := rows.Scan(&r.ID, &r.CommitHash, &dateStr, &r.Project, &r.Category, &r.ImpactSummary, &createdAtStr)
+		var clustersJSON *string
+		err := rows.Scan(&r.ID, &r.CommitHash, &dateStr, &r.Project, &r.Category, &r.ImpactSummary, &clustersJSON, &createdAtStr)
 		if err != nil {
 			return nil, err
 		}
 		r.Date, _ = parseTime(dateStr)
 		r.CreatedAt, _ = parseTime(createdAtStr)
+		if clustersJSON != nil && *clustersJSON != "" {
+			json.Unmarshal([]byte(*clustersJSON), &r.Clusters)
+		}
+		if r.Clusters == nil {
+			r.Clusters = []string{}
+		}
 		results = append(results, r)
 	}
 

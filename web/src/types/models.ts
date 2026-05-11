@@ -15,6 +15,7 @@ export interface AnalysisResult {
   project: string;
   category: Category;
   impact_summary: string;
+  clusters: string[];
   created_at: string;
 }
 
@@ -47,12 +48,18 @@ export interface TokenUsage {
   total_cost: number;
 }
 
+export interface ClusterStat {
+  count: number;
+  projects: string[];
+}
+
 export interface DashboardStats {
   total_results: number;
   total_commits: number;
   tokens_used: TokenUsage;
   category_breakdown: Record<Category, number>;
   project_breakdown: Record<string, number>;
+  cluster_breakdown: Record<string, ClusterStat>;
   recent_activity: Array<{ date: string; count: number }>;
 }
 

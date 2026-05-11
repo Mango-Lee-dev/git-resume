@@ -79,8 +79,50 @@ func (db *DB) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_results_category ON analysis_results(category);
 	`
 
-	_, err := db.conn.Exec(schema)
-	return err
+	if _, err := db.conn.Exec(schema); err != nil {
+		return err
+	}
+
+	// Migration: add clusters column if it doesn't exist
+	if err := db.addClustersColumn(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// addClustersColumn adds the clusters column to analysis_results if it doesn't exist
+func (db *DB) addClustersColumn() error {
+	// Check if column exists
+	rows, err := db.conn.Query("PRAGMA table_info(analysis_results)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	hasClusterColumn := false
+	for rows.Next() {
+		var cid int
+		var name, ctype string
+		var notnull, pk int
+		var dfltValue interface{}
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		if name == "clusters" {
+			hasClusterColumn = true
+			break
+		}
+	}
+
+	if !hasClusterColumn {
+		_, err := db.conn.Exec("ALTER TABLE analysis_results ADD COLUMN clusters TEXT DEFAULT '[]'")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Conn returns the underlying database connection

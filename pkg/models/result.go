@@ -10,6 +10,7 @@ type AnalysisResult struct {
 	Project       string    `json:"project"`
 	Category      Category  `json:"category"`
 	ImpactSummary string    `json:"impact_summary"`
+	Clusters      []string  `json:"clusters"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 

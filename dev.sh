@@ -50,11 +50,11 @@ BACK_PID=$!
 # --- Frontend ---------------------------------------------------------------
 if [ ! -d web/node_modules ] || [ ! -f web/package.json ]; then
   echo "Installing frontend deps..."
-  (cd web && yarn install)
+  (cd web && npm install)
 fi
 
 echo "Starting frontend (logs: $FRONT_LOG)"
-(cd web && yarn dev) > "$FRONT_LOG" 2>&1 &
+(cd web && npm run dev) > "$FRONT_LOG" 2>&1 &
 FRONT_PID=$!
 
 # --- Wait for backend health -----------------------------------------------
