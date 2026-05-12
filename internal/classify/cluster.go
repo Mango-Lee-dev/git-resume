@@ -57,6 +57,8 @@ func NewClusterClassifier() *ClusterClassifier {
 
 func (c *ClusterClassifier) initPatterns() {
 	// Auth patterns
+	// Note: \b is ASCII-only in Go's RE2 and does not match around Hangul,
+	// so Korean keywords are matched as plain substrings.
 	c.patterns[ClusterAuth] = compilePatterns(
 		`(?i)\bauth\b`,
 		`(?i)\blogin\b`,
@@ -72,6 +74,18 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)\baccess[_-]?control`,
 		`(?i)\brole\b`,
 		`(?i)\brbac\b`,
+		// Korean
+		`인증`,
+		`로그인`,
+		`로그아웃`,
+		`회원가입`,
+		`권한`,
+		`세션`,
+		`토큰`,
+		`비밀번호`,
+		`패스워드`,
+		`자격증명`,
+		`역할`,
 	)
 
 	// API patterns
@@ -91,6 +105,13 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)/api/`,
 		`(?i)/handlers/`,
 		`(?i)/routes/`,
+		// Korean
+		`엔드포인트`,
+		`라우트`,
+		`라우터`,
+		`핸들러`,
+		`미들웨어`,
+		`웹훅`,
 	)
 
 	// Database patterns
@@ -112,6 +133,13 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)\.sql$`,
 		`(?i)/migrations?/`,
 		`(?i)/models?/`,
+		// Korean
+		`데이터베이스`,
+		`디비`,
+		`쿼리`,
+		`마이그레이션`,
+		`스키마`,
+		`테이블`,
 	)
 
 	// UI patterns
@@ -142,6 +170,17 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)/pages?/`,
 		`(?i)/views?/`,
 		`(?i)/styles?/`,
+		// Korean
+		`화면`,
+		`페이지`,
+		`컴포넌트`,
+		`레이아웃`,
+		`디자인`,
+		`스타일`,
+		`버튼`,
+		`모달`,
+		`프론트엔드`,
+		`반응형`,
 	)
 
 	// Testing patterns
@@ -162,6 +201,13 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)/__tests__/`,
 		`(?i)/test/`,
 		`(?i)/tests/`,
+		// Korean
+		`테스트`,
+		`단위테스트`,
+		`통합테스트`,
+		`커버리지`,
+		`모킹`,
+		`픽스처`,
 	)
 
 	// Performance patterns
@@ -180,6 +226,18 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)\bconcurrent`,
 		`(?i)\basync\b`,
 		`(?i)\bbuffering\b`,
+		// Korean
+		`성능`,
+		`최적화`,
+		`캐시`,
+		`캐싱`,
+		`지연시간`,
+		`메모리`,
+		`벤치마크`,
+		`프로파일링`,
+		`병렬`,
+		`동시성`,
+		`비동기`,
 	)
 
 	// Security patterns
@@ -198,6 +256,15 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)\binjection\b`,
 		`(?i)\baudit\b`,
 		`(?i)\bcve\b`,
+		// Korean
+		`보안`,
+		`취약점`,
+		`암호화`,
+		`복호화`,
+		`인증서`,
+		`인젝션`,
+		`감사`,
+		`해시`,
 	)
 
 	// Infra patterns
@@ -229,6 +296,15 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)/k8s/`,
 		`(?i)/deploy/`,
 		`(?i)/infra/`,
+		// Korean
+		`배포`,
+		`도커`,
+		`쿠버네티스`,
+		`파이프라인`,
+		`클라우드`,
+		`인프라`,
+		`환경변수`,
+		`환경설정`,
 	)
 
 	// Refactor patterns
@@ -246,6 +322,14 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)\bconsolidate`,
 		`(?i)\bmodularize`,
 		`(?i)\bdecouple`,
+		// Korean
+		`리팩토링`,
+		`리팩터링`,
+		`재구성`,
+		`단순화`,
+		`이름변경`,
+		`모듈화`,
+		`코드정리`,
 	)
 
 	// Docs patterns
@@ -265,6 +349,13 @@ func (c *ClusterClassifier) initPatterns() {
 		`(?i)\.adoc$`,
 		`(?i)/docs?/`,
 		`(?i)/documentation/`,
+		// Korean
+		`문서`,
+		`가이드`,
+		`주석`,
+		`변경로그`,
+		`변경기록`,
+		`명세`,
 	)
 }
 
